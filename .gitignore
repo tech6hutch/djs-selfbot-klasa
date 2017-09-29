@@ -1,0 +1,10 @@
+# Node and NPM
+/node_modules
+package-lock.json
+
+# Komada, configuration, and storage
+config.json
+/src/bwd
+
+# Editor files
+/.vscode

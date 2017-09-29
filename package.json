@@ -1,0 +1,28 @@
+{
+  "name": "hutch-selfbot-klasa",
+  "version": "0.1.0",
+  "description": "My selfbot",
+  "main": "src/app.js",
+  "dependencies": {
+    "klasa": "^0.4.0-dev",
+    "discord.js": "^12.0.0-dev"
+  },
+  "devDependencies": {
+    "eslint": "^4.7.2",
+    "eslint-config-standard": "*",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-node": "^5.1.1",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tech6hutch/djs-selfbot-klasa.git"
+  },
+  "author": "Hutch Moore",
+  "license": "MIT",
+  "homepage": "https://github.com/tech6hutch/djs-selfbot-klasa#readme"
+}

@@ -1,4 +1,4 @@
-const { Command } = require('klasa')
+const { Command, util } = require('klasa')
 
 module.exports = class extends Command {
   constructor (...args) {
@@ -7,10 +7,13 @@ module.exports = class extends Command {
       description: 'Show or modify tags.',
       usage: '[add|edit|del|get|list] [tagname:str{2,100}] [contents:str{2,2000}] [...]',
       usageDelim: ' ',
-      extendedHelp: `-add newTagName This is your new tag contents
--edit existingtagName This is new new edited contents
--del tagName
--list`,
+      extendedHelp: `-add tagname This is your new tag contents
+-edit tagname This is new new edited contents
+-del tagname
+-get tagname
+-list
+
+\`action\` may be omitted for "edit", "get", and "list".`,
     })
 
     this.schema = {
@@ -48,9 +51,10 @@ module.exports = class extends Command {
    */
   async run (msg, [action, tagname, ...contents]) {
     contents = contents[0] ? contents.join(' ') : null
+    console.log({action, tagname, contents})
     if (!action) {
       if (tagname) {
-        if (contents) action = 'update'
+        if (contents) action = 'edit'
         else action = 'get'
       } else {
         // If the first word is over 100 chars, then Klasa will probably parse it as `contents`.
@@ -60,7 +64,8 @@ module.exports = class extends Command {
         else action = 'list'
       }
     }
-    return msg.channel.send(await this[action](tagname, contents, msg.guild))
+    return msg.channel.send(await this[action](msg.language,
+      tagname, contents, msg.guild))
   }
 
   /**
@@ -78,68 +83,71 @@ module.exports = class extends Command {
   }
 
   /**
+   * @param {Language} lang
    * @param {string} tagname
    * @returns {Promise<string>}
    */
-  async get (tagname) {
+  async get (lang, tagname) {
     const tag = this.exists(tagname, {returnTag: true})
     if (tag) return tag.contents
-    return `Tag \`${tagname}\` doesn't exist`
+    return lang.get('COMMAND_TAG_DOESNT_EXIST', tagname)
   }
 
   /**
+   * @param {Language} lang
    * @param {string} tagname
    * @param {string} contents
    * @param {DiscordGuild} guild
    * @returns {Promise<string>}
    */
-  async add (tagname, contents, guild) {
+  async add (lang, tagname, contents, guild) {
     const sg = this.client.settings.tags
 
-    if (this.exists(tagname)) return `Tag \`${tagname}\` already exists`
+    if (this.exists(tagname)) return lang.get('COMMAND_TAG_ALREADY_EXISTS', tagname)
 
     await sg.create(tagname)
     console.log(await sg.update(tagname, {contents}, guild))
-    return `Added tag \`${tagname}\``
+    return lang.get('COMMAND_TAG_ADDED', tagname)
   }
 
   /**
+   * @param {Language} lang
    * @param {string} tagname
    * @param {string} contents
    * @param {DiscordGuild} guild
    * @returns {Promise<string>}
    */
-  async edit (tagname, contents, guild) {
+  async edit (lang, tagname, contents, guild) {
     const sg = this.client.settings.tags
 
-    if (!this.exists(tagname)) return `Tag \`${tagname}\` doesn't exist`
+    if (!this.exists(tagname)) return lang.get('COMMAND_TAG_DOESNT_EXIST', tagname)
 
     console.log(await sg.update(tagname, {contents}, guild))
-    return `Updated tag \`${tagname}\``
+    return lang.get('COMMAND_TAG_EDITED', tagname)
   }
 
   /**
+   * @param {Language} lang
    * @param {string} tagname
    * @returns {Promise<string>}
    */
-  async del (tagname) {
+  async del (lang, tagname) {
     const sg = this.client.settings.tags
 
-    if (!this.exists(tagname)) return `Tag \`${tagname}\` doesn't exist`
+    if (!this.exists(tagname)) return lang.get('COMMAND_TAG_DOESNT_EXIST', tagname)
 
     console.log(await sg.destroy(tagname))
-    return `Deleted tag \`${tagname}\``
+    return lang.get('COMMAND_TAG_DELETED', tagname)
   }
 
   /**
+   * @param {Language} lang
    * @returns {Promise<string>}
    */
-  async list () {
-    console.log(this.client.settings.tags.getAll())
-    return [
-      '```',
-      this.client.settings.tags.getAll().map((v, k) => k).join(', '),
-      '```',
-    ]
+  async list (lang) {
+    const tags = this.client.settings.tags.getAll()
+    console.log(tags)
+    return lang.get('COMMAND_TAG_LIST',
+      util.codeBlock('', tags.map((v, k) => k).join(', ')))
   }
 }

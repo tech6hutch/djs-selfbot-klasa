@@ -1,6 +1,7 @@
-const { Command, util } = require('klasa')
+const { SelfbotCommand } = require(selfbotKlasa)
+const { util } = require('klasa')
 
-module.exports = class extends Command {
+module.exports = class extends SelfbotCommand {
   constructor (...args) {
     super(...args, {
       aliases: ['tags'],
@@ -14,6 +15,41 @@ module.exports = class extends Command {
 -list
 
 \`action\` may be omitted for "edit", "get", and "list".`,
+      subHelps: {
+        add: {
+          description: 'Add a new tag',
+          usage: '<tagname:str{2,100}> <contents:str{2,2000}> [...]',
+          extendedHelp: `Example:
+(prefix)tag add tagname This is your new tag contents`,
+        },
+        edit: {
+          description: 'Edit a tag',
+          usage: '<tagname:str{2,100}> <contents:str{2,2000}> [...]',
+          extendedHelp: `Examples:
+(prefix)tag edit tagname This is new new edited contents
+(prefix)tag tagname This is new new edited contents`,
+        },
+        del: {
+          description: 'Delete a tag',
+          usage: '<tagname:str{2,100}>',
+          extendedHelp: `Example:
+(prefix)tag del tagname`,
+        },
+        get: {
+          description: 'Display a tag',
+          usage: '<tagname:str{2,100}>',
+          extendedHelp: `Examples:
+(prefix)tag get tagname
+(prefix)tag tagname`,
+        },
+        list: {
+          description: 'List all tags',
+          usage: '',
+          extendedHelp: `Examples:
+(prefix)tag list
+(prefix)tags`,
+        },
+      },
     })
 
     this.schema = {

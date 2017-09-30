@@ -2,6 +2,8 @@ const { join } = require('path')
 const config = require(join(process.cwd(), 'config.json'))
 const klasa = require('klasa')
 
+global.selfbotKlasa = join(__dirname, 'index.js')
+
 class Selfbot extends klasa.Client {}
 
 new Selfbot(Object.assign(config, {

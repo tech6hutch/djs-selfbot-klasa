@@ -102,6 +102,7 @@ module.exports = class extends Language {
       COMMAND_TAG_EDITED: (tagname) => `Updated tag \`${tagname}\``,
       COMMAND_TAG_DELETED: (tagname) => `Deleted tag \`${tagname}\``,
       COMMAND_TAG_LIST: (tags) => `${tags}\nCheck console for values.`,
+      COMMAND_TAG_NO_TAGS: 'There are no tags.',
       COMMAND_TAG_DOESNT_EXIST: (tagname) => `Tag \`${tagname}\` doesn't exist`,
       COMMAND_TAG_ALREADY_EXISTS: (tagname) => `Tag \`${tagname}\` already exists`,
     }

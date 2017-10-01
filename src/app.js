@@ -2,7 +2,9 @@ const { join } = require('path')
 const config = require(join(process.cwd(), 'config.json'))
 const klasa = require('klasa')
 
-global.selfbotKlasa = join(__dirname, 'index.js')
+module.exports = {
+  SelfbotCommand: require('./lib/SelfbotCommand'),
+}
 
 class Selfbot extends klasa.Client {}
 

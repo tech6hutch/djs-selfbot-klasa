@@ -4,9 +4,6 @@
     "node": true
   },
   "extends": "standard",
-  "globals": {
-    "selfbotKlasa": false
-  },
   "parserOptions": {
     "ecmaVersion": 8,
     "sourceType": "module"

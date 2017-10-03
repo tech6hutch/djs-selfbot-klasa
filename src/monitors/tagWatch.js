@@ -1,4 +1,5 @@
-const { Monitor } = require('klasa')
+// const { SelfbotUtil: ツ } = require.main.exports
+const { Monitor, util: { regExpEsc } } = require('klasa')
 
 module.exports = class extends Monitor {
   constructor (...args) {
@@ -11,14 +12,17 @@ module.exports = class extends Monitor {
    * @param {DiscordMessage} msg
    */
   run (msg) {
-    let [ tagname, ...restOfMsg ] = msg.content.split(' ')
-    tagname = tagname.trim().toLowerCase()
-    restOfMsg = restOfMsg.join(' ')
-    const tags = this.client.commands.get('tag').getAll()
-    if (tags.has(tagname)) {
-      const tag = tags.get(tagname)
-      if (!tag.contents) return console.warn('detected usage of empty tag:', tag)
-      msg.edit(`${tag.contents} ${restOfMsg}`)
-    }
+    const tagCmd = this.client.commands.get('tag')
+    const regex = tagCmd.getAll().keyArray().sort()
+      .map(t => {
+        const r = new RegExp(`^${regExpEsc(t)}\\b`, 'i')
+        r.tagname = t
+        return r
+      })
+      .find(t => t.test(msg.content))
+    if (!regex) return
+    const tagContents = tagCmd.get(regex.tagname).contents
+    if (!tagContents) return console.error(`Tag ${regex.tagname} has no contents`)
+    msg.edit(msg.content.replace(regex, tagContents))
   }
 }

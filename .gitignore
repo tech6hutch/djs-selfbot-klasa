@@ -5,7 +5,6 @@ package-lock.json
 # Klasa, configuration, and storage
 config.json
 .env
-/src/bwd
 
 # Editor files
 /.vscode

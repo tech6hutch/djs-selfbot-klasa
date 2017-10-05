@@ -1,0 +1,1 @@
+{"prefix":{"type":"String","default":["h.","H."],"array":true,"sql":"TEXT NOT NULL DEFAULT '[\"h.\",\"H.\"]'"},"language":{"type":"String","default":"en-US","array":false,"sql":"TEXT NOT NULL DEFAULT 'en-US'"},"disabledCommands":{"type":"Command","default":[],"array":true,"sql":"TEXT DEFAULT '[]'"}}

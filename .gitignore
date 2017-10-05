@@ -2,8 +2,9 @@
 /node_modules
 package-lock.json
 
-# Komada, configuration, and storage
+# Klasa, configuration, and storage
 config.json
+.env
 /src/bwd
 
 # Editor files

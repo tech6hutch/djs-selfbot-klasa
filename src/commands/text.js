@@ -18,6 +18,7 @@ module.exports = class extends SelfbotCommand {
      */
     this.patterns = new this.client.methods.Collection([
       [/\bI"m\b/g, "I'm"],
+      [/\blpl\b/g, 'lol'],
     ])
     /**
      * @param {string} str

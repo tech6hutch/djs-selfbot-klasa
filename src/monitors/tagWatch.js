@@ -12,8 +12,9 @@ module.exports = class extends Monitor {
    * @param {DiscordMessage} msg
    */
   run (msg) {
-    const tagCmd = this.client.commands.get('tag')
-    const regex = tagCmd.getAll().keyArray().sort()
+    const tagsDB = this.client.settings.tags
+    const regex = tagsDB.cache.getKeys('tags')
+      .sort((a, b) => a.length === b.length ? a.localeCompare(b) : b.length - a.length)
       .map(t => {
         const r = new RegExp(`^${regExpEsc(t)}\\b`, 'i')
         r.tagname = t
@@ -21,7 +22,7 @@ module.exports = class extends Monitor {
       })
       .find(t => t.test(msg.content))
     if (!regex) return
-    const tagContents = tagCmd.get(regex.tagname).contents
+    const tagContents = tagsDB.getEntry(regex.tagname).contents
     if (!tagContents) return console.error(`Tag ${regex.tagname} has no contents`)
     msg.edit(msg.content.replace(regex, tagContents))
   }

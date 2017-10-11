@@ -30,7 +30,7 @@ module.exports = class extends Command {
     this.outputTo = {
       channel: (msg, topLine, evaled) => msg.send(`\`${topLine}\`\n${this.client.methods.util.codeBlock('js', this.client.methods.util.clean(evaled))}`),
       log: (msg, topLine, evaled) => this.client.emit('log', `${topLine}\n${evaled}`),
-      upload: (msg, topLine, evaled) => msg.channel.send('', new MessageAttachment(Buffer.from(`// ${topLine}\n${evaled}`), 'eval.js')),
+      upload: (msg, topLine, evaled) => msg.channel.send(`\`${topLine}\``, new MessageAttachment(Buffer.from(`// ${topLine}\n${evaled}`), 'eval.js')),
     }
   }
 
@@ -122,13 +122,9 @@ module.exports = class extends Command {
   }
 
   getNiceDuration (time) {
-    if (time >= 1000) return `${this.roundTo3(time / 1000)}s`
-    if (time < 1) return `${this.roundTo3(time * 1000)}μs`
-    return `${this.roundTo3(time)}ms`
-  }
-
-  roundTo3 (n) {
-    return Math.round(n * 1000) / 1000
+    if (time >= 1000) return `${(time / 1000).toFixed(2)}s`
+    if (time >= 1) return `${time.toFixed(2)}ms`
+    return `${(time * 1000).toFixed(2)}μs`
   }
 
   async sendTooLongQuery (cmdMsg, topLine, evaled, question, options) {

@@ -6,7 +6,7 @@ module.exports = class extends Monitor {
       ignoreSelf: false,
     })
 
-    this.emojiNameRegex = /:[a-z\d]+:/gi
+    this.emojiNameRegex = /:[a-z\d_]+:/gi
   }
 
   init () {

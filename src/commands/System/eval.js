@@ -48,7 +48,7 @@ module.exports = class extends Command {
     try {
       const start = now()
       const evaledP = eval(code) // eslint-disable-line no-eval
-      let evaled = evaledP instanceof Promise ? await evaledP : evaledP
+      let evaled = typeof evaledP.then === 'function' ? await evaledP : evaledP
       const time = this.getNiceDuration(now() - start)
 
       if (flags.silent) return
@@ -97,7 +97,7 @@ module.exports = class extends Command {
         typeStr = 'null primitive'
       } else {
         let objType = value.constructor.name
-        if (value instanceof Promise) {
+        if (typeof value.then === 'function') { // a promise, or more precisely, a thenable
           if (objType !== 'Promise') objType += ' promise'
           typeStr = i <= this.typeRecursionLimit
             ? `awaited ${objType} object ➡ ${await this.getTypeStr(await value, i + 1)}`

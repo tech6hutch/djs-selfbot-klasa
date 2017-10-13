@@ -39,9 +39,11 @@ module.exports = class extends Monitor {
     const msgEmojis = msg.content.match(this.emojiNames)
     if (msgEmojis && msgEmojis.length > 0) {
       // Emojis I can already use
-      const usableEmojiNames = msg.guild.emojis
-        .map(e => e.name)
-        .concat(this.globalEmojiNames)
+      const usableEmojiNames = msg.guild
+        ? msg.guild.emojis
+          .map(e => e.name)
+          .concat(this.globalEmojiNames)
+        : this.globalEmojiNames
       let emojiExists = false
       let urls = []
       for (let i = 0, len = msgEmojis.length; i < len; i++) {

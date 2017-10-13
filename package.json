@@ -4,8 +4,8 @@
   "description": "My selfbot",
   "main": "src/app.js",
   "dependencies": {
-    "klasa": "^0.4.0-dev",
-    "discord.js": "^12.0.0-dev"
+    "klasa": "dirigeants/klasa#SettingGateway-Rewrite",
+    "discord.js": "hydrabolt/discord.js"
   },
   "devDependencies": {
     "eslint": "^4.7.2",

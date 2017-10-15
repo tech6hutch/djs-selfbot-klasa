@@ -17,7 +17,7 @@ module.exports = class extends Command {
       if (body.result_type === 'no_results') {
         await msg.channel.send('No results found')
       } else {
-        var wordObject = body.list[0]
+        const wordObject = body.list[0]
         await msg.channel.send({
           embed: {
             title: 'Urban Dictionary',

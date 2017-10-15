@@ -59,7 +59,7 @@ module.exports = class extends Command {
           { yes: 'log' })
       }
 
-      const is = this.isKindaLong(evaled, topLine)
+      const is = this.isKindaLong(evaled)
       if (is.kindaLong) {
         return this.sendTooLongQuery(msg, topLine, evaled,
           is.becauseOfWrapping
@@ -112,7 +112,7 @@ module.exports = class extends Command {
     return evaled.length > 1988 - topLine.length
   }
 
-  isKindaLong (evaled, topLine) {
+  isKindaLong (evaled) {
     const lines = String(evaled).split('\n')
     const lineCount = lines.length
 

@@ -9,6 +9,12 @@
     "sourceType": "module"
   },
   "rules": {
-    "comma-dangle": ["warn", "always-multiline"]
+    "comma-dangle": ["warn", "always-multiline"],
+    "no-bitwise": "warn",
+    "no-extra-parens": ["warn", "all", {
+      "conditionalAssign": true
+    }],
+    "no-var": "error",
+    "prefer-const": "warn"
   }
 }

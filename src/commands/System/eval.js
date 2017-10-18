@@ -10,20 +10,63 @@ module.exports = class extends Command {
       aliases: ['ev'],
       permLevel: 10,
       description: 'Evaluates arbitrary JavaScript. Reserved for bot owner.',
-      usage: '[-dl|-ld|-ds|-sd] [-d|--delete] [-l|--log] [-s|--silent] <expression:str> [...]',
-      usageDelim: ' ',
+      usage: '<expression:str>',
       extendedHelp: `Flags:
--d, --delete  delete the command message
--l, --log     send the result to the console instead of Discord; cannot be combined with -d
--s, --silent  eval the code without showing the result; cannot be combined with -l`,
+
+-d, --delete
+        delete the command message
+
+--depth=DEPTH
+        the number of times to recurse while formatting the result; default 0
+
+-l, --log
+        send the result to the console instead of Discord; cannot be combined with -s (overridden by -o)
+
+-p, --no-await
+        don't await the result if it's a promise
+
+-o, --output-to=[WHERE]
+        output the result to WHERE; WHERE can be 'channel' (default), 'log' (-l), 'upload', or 'none' / '' (-s); if provided, -l and -s are ignored
+
+-s, --silent
+        eval the code without showing the result; cannot be combined with -l (overridden by -o)
+
+-w, --wait=TIME
+        time in milliseconds to await promises; default is 10000`,
     })
 
+    // this.shortFlags = {
+    //   d: 'delete',
+    //   l: 'log',
+    //   p: 'noAwait',
+    //   o: 'outputTo',
+    //   s: 'silent',
+    //   w: 'wait',
+    // }
+
+    // this.longFlags = {
+    //   delete: 'delete',
+    //   depth: 'depth',
+    //   log: 'log',
+    //   'no-await': 'noAwait',
+    //   'output-to': 'outputTo',
+    //   silent: 'silent',
+    //   wait: 'wait',
+    // }
+
+    this.defaults = {
+      // The depth to inspect the evaled output to, if it's not a string
+      depth: 0,
+      // How long to wait for promises to resolve
+      wait: 10000,
+    }
+
     // The depth to inspect the evaled output to, if it's not a string
-    this.inspectionDepth = 0
+    // this.inspectionDepth = 0
     // this.getTypeStr shouldn't recurse more than once, but just in case
     this.typeRecursionLimit = 2
     // How long to wait for promises to resolve
-    this.timeout = 10000
+    // this.timeout = 10000
     // The number of lines before the output is considered overly long
     this.tooManyLines = 7
     // The approx. number of chars per line in a codeblock on Android, on a Google Pixel XL
@@ -34,24 +77,52 @@ module.exports = class extends Command {
       channel: (msg, topLine, evaled) => msg.send(`\`${topLine}\`\n${this.client.methods.util.codeBlock('js', this.client.methods.util.clean(evaled))}`),
       log: (msg, topLine, evaled) => this.client.emit('log', `${topLine}\n${evaled}`),
       upload: (msg, topLine, evaled) => msg.channel.send(`\`${topLine}\``, new MessageAttachment(Buffer.from(`// ${topLine}\n${evaled}`), 'eval.js')),
+      none: async () => null,
     }
   }
 
-  async run (msg, [mult, d, l, s, ...code]) {
-    mult = mult || ''
+  async run (msg, [argStr]) {
+    assert(typeof argStr === 'string')
+    this.client.console.log(`argStr: ${argStr}`)
+
+    const [ givenFlags, code ] = this.parseArgs(argStr)
+
     const flags = {
-      delete: Boolean(d) || mult.includes('d'),
-      log: Boolean(l) || mult.includes('l'),
-      silent: Boolean(s) || mult.includes('s'),
+      delete: Boolean(givenFlags.delete || givenFlags.d),
+      depth: parseInt(givenFlags.depth || this.defaults.depth, 10),
+      // log: Boolean(givenFlags.log || givenFlags.l),
+      noAwait: Boolean(givenFlags['no-await'] || givenFlags.p),
+      // silent: Boolean(givenFlags.silent || givenFlags.s),
+      outputTo: [ givenFlags['output-to'], givenFlags.o ].find(f => f in this.outputTo) ||
+        (givenFlags.log || givenFlags.l ? 'log' : '') ||
+        (givenFlags.silent || givenFlags.s ? 'none' : '') ||
+        'channel',
+      wait: parseInt(givenFlags.wait || givenFlags.w || this.defaults.wait, 10),
     }
-    code = code.join(' ')
+
+    // return msg.send(`flags: ${inspect(flags)}\ncode: ${inspect(code)}`)
+
+    // argStr.split(' ')
+    // this.client.console.log('all args:', inspect(arguments))
+    // this.client.console.log('raw args:', inspect({ mult, d, l, p, s, code }))
+    // mult = mult[0] || ''
+    // // use somewhere, idk: ^-[a-z]+$/
+    // const flags = {
+    //   delete: Boolean(d) || mult.includes('d'),
+    //   log: Boolean(l) || mult.includes('l'),
+    //   noAwait: Boolean(p) || mult.includes('p'),
+    //   silent: Boolean(s) || mult.includes('s'),
+    // }
+    // code = code.join(' ')
+    // this.client.console.log(inspect({ flags, code }))
 
     if (flags.delete) msg.delete()
 
     try {
       const [evaled, topLine] = await this.handleEval(flags, code, /* for the eval: */ msg)
 
-      if (flags.log) return this.outputTo.log(msg, topLine, evaled)
+      if (flags.outputTo === 'log') return this.outputTo.log(msg, topLine, evaled)
+      if (flags.outputTo === 'upload') return this.outputTo.upload(msg, topLine, evaled)
 
       if (this.isTooLong(evaled, topLine)) {
         return this.sendTooLongQuery(msg, topLine, evaled,
@@ -77,12 +148,85 @@ module.exports = class extends Command {
     }
   }
 
+  parseArgs (argStr) {
+    assert(typeof argStr === 'string')
+    const flagRegex = /^(--?)([a-z-]+)(=[a-z\d]*)?$/
+    const args = String(argStr).split(' ')
+    const codeIndex = args.findIndex((arg, i) => !flagRegex.test(arg) || arg === '--code')
+    const argFlags = args.slice(0, codeIndex)
+    const givenFlags = {}
+    for (let argIndex = 0; argIndex < argFlags.length; argIndex++) {
+      assert(typeof argFlags[argIndex] === 'string')
+      assert(flagRegex.exec(argFlags[argIndex]))
+
+      const [ , hyphen, flagName, value ] = flagRegex.exec(argFlags[argIndex])
+      assert(flagRegex.exec(argFlags[argIndex])[0] === argFlags[argIndex])
+      assert(typeof hyphen === 'string' && typeof flagName === 'string')
+      assert(hyphen === '-' || hyphen === '--')
+      assert(flagName.length > 0)
+      if (value) assert(value[0] === '=')
+      this.client.console.log(inspect({ hyphen, flagName, value }))
+
+      if (hyphen === '-') {
+        for (let i = 0; i < flagName.length; i++) {
+          assert(typeof flagName[i] === 'string')
+          givenFlags[flagName[i]] = value ? value.slice(1) : true
+        }
+      } else if (hyphen === '--') {
+        assert(flagName !== 'code')
+        givenFlags[flagName] = value ? value.slice(1) : true
+      } else assert(false, 'Something has gone horribly wrong if this runs')
+    }
+
+    return [
+      givenFlags,
+      args.slice(args[codeIndex] === '--code' && codeIndex + 1 < args.length
+        ? codeIndex + 1
+        : codeIndex).join(' '),
+    ]
+
+    // for (arg = args.shift(); args.length > 0 && arg.startsWith('-'); arg = args.shift()) {
+    //   assert(typeof arg === 'string')
+
+    //   const argMatches = /^(--?)([a-z-]+)(=[a-z\d]*)?$/.exec(arg)
+    //   this.client.console.log('argMatches:', inspect(argMatches))
+    //   if (!argMatches) break
+    //   const [ _, hyphen, flagName, value ] = argMatches
+    //   assert(_ === arg)
+    //   assert(typeof hyphen === 'string' && typeof flagName === 'string')
+    //   assert(hyphen === '-' || hyphen === '--')
+    //   assert(flagName.length > 0)
+    //   if (value) assert(value[0] === '=')
+
+    //   this.client.console.log(inspect({ hyphen, flagName, value }))
+    //   if (hyphen === '-') {
+    //     for (let i = 0; i < flagName.length; i++) {
+    //       assert(typeof flagName[i] === 'string')
+    //       if (!(flagName[i] in this.shortFlags)) throw msg.sendCode('', `Error: Invalid flag "${flagName[i]}"`)
+    //       flags[this.shortFlags[flagName[i]]] = value ? value.slice(1) : true
+    //     }
+    //   } else if (hyphen === '--') {
+    //     if (flagName === 'code') {
+    //       arg = ''
+    //       break
+    //     }
+    //     if (!(flagName in this.longFlags)) throw msg.sendCode('', `Error: Invalid flag "${flagName}"`)
+    //     flags[this.longFlags[flagName]] = value ? value.slice(1) : true
+    //   } else {
+    //     assert(false, 'Something has gone horribly wrong if this runs, since I even fecking asserted for this earlier')
+    //   }
+    // }
+
+    // return [ flags, [arg, ...args].join(' ') ]
+  }
+
   async handleEval (flags, code, /* for the eval: */ msg) {
     const start = now()
     const evaledOriginal = eval(code) // eslint-disable-line no-eval
     const syncEnd = now()
-    const evaledTimeout = this.timeoutPromise(evaledOriginal)
-    let evaledValue = await evaledTimeout // awaiting a non-promise returns the non-promise
+    const evaledTimeout = this.timeoutPromise(evaledOriginal, flags.wait)
+    // Awaiting a non-promise returns the non-promise
+    let evaledValue = flags.noAwait ? evaledOriginal : await evaledTimeout
     const asyncEnd = now()
 
     const evaledIsThenable = this.isThenable(evaledOriginal)
@@ -91,18 +235,19 @@ module.exports = class extends Command {
     // And if the promise timed out, just show the promise
     if (!evaledIsThenable || evaledValue instanceof TimeoutError) evaledValue = evaledOriginal
 
-    const time = evaledIsThenable
+    const time = evaledIsThenable && !flags.noAwait
       ? `${this.getNiceDuration(syncEnd - start)} ➡ ${this.getNiceDuration(asyncEnd - syncEnd)}`
       : `${this.getNiceDuration(syncEnd - start)}`
 
-    if (flags.silent) return [evaledValue]
+    if (flags.outputTo === 'none') return [evaledValue]
 
     const topLine = `${await this.getTypeStr(
+      flags,
       evaledOriginal,
       evaledIsThenable ? evaledTimeout : null
     )}, ${time}`
 
-    if (typeof evaledValue !== 'string') evaledValue = inspect(evaledValue, { depth: this.inspectionDepth })
+    if (typeof evaledValue !== 'string') evaledValue = inspect(evaledValue, { depth: flags.depth })
 
     return [evaledValue, topLine]
   }
@@ -139,12 +284,12 @@ module.exports = class extends Command {
     }
   }
 
-  async getTypeStr (value, awaitedPromise = null, i = 0) {
+  async getTypeStr (flags, value, awaitedPromise = null, i = 0) {
     if (!this.isThenable(value)) assert(!awaitedPromise, '`value` was not a promise, but a surrogate, already-awaited promise was still passed')
     if (awaitedPromise) assert(typeof awaitedPromise === 'object' && awaitedPromise instanceof Promise, '`awaitedPromise` was provided, but it was not a promise')
     assert(typeof i === 'number' && i >= 0)
 
-    if (value instanceof TimeoutError) return `but it didn't resolve in ${this.getNiceDuration(this.timeout)}`
+    if (value instanceof TimeoutError) return `but it didn't resolve in ${this.getNiceDuration(flags.wait)}`
 
     const basicType = typeof value
     if (basicType === 'object') {
@@ -154,9 +299,9 @@ module.exports = class extends Command {
       let objType = value.constructor.name
       if (this.isThenable(value)) { // a promise, or more precisely, a thenable
         if (objType !== 'Promise') objType += ' promise'
-        return i <= this.typeRecursionLimit
+        return i <= this.typeRecursionLimit && !flags.noAwait
           // But we're gonna await the already-awaited promise, for efficiency
-          ? `awaited ${objType} object ➡ ${await this.getTypeStr(await awaitedPromise, null, i + 1)}`
+          ? `awaited ${objType} object ➡ ${await this.getTypeStr(flags, await awaitedPromise, null, i + 1)}`
           : `${objType} object`
       } else if (value instanceof Boolean || value instanceof Number || value instanceof String) {
         return `${objType} object (not a primitive!)`
@@ -220,8 +365,8 @@ module.exports = class extends Command {
     return value && typeof value.then === 'function'
   }
 
-  timeoutPromise (promise) {
-    return Promise.race([promise, sleep(this.timeout, new TimeoutError('Promise timed out'))])
+  timeoutPromise (promise, timeout) {
+    return Promise.race([promise, sleep(timeout, new TimeoutError('Promise timed out'))])
   }
 }
 

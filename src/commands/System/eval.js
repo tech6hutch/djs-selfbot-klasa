@@ -135,9 +135,9 @@ module.exports = class extends Command {
 
       return this.outputTo.channel(msg, evaled, topLine)
     } catch (error) {
-      if (flags.outputTo === 'none') return
+      if (flags.outputTo === 'none') return null
       if (error && error.stack) this.client.emit('error', error.stack)
-      if (flags.outputTo === 'log') return
+      if (flags.outputTo === 'log') return null
       return msg.send(`\`ERROR\`\n${this.client.methods.util.codeBlock('js', this.client.methods.util.clean(error))}`)
     }
   }
@@ -324,5 +324,6 @@ module.exports = class extends Command {
     } catch (error) {
       queryMsg.delete()
     }
+    return null
   }
 }

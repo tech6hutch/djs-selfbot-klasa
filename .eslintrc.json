@@ -15,6 +15,9 @@
       "conditionalAssign": true
     }],
     "no-var": "error",
-    "prefer-const": "warn"
+    "prefer-const": "warn",
+    "valid-jsdoc": ["warn", {
+      "requireReturnDescription": false
+    }]
   }
 }

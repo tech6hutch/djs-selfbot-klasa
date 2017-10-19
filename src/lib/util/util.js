@@ -1,6 +1,7 @@
 /**
- * @param {*} arg - The value passed to the functions
- * @param {Function} f - A function
+ * @param {*} arg The value passed to the functions
+ * @param {Function} f A function
+ * @returns {*}
  */
 const composeReduce = function (arg, f) {
   return f.call(this, arg)
@@ -8,11 +9,11 @@ const composeReduce = function (arg, f) {
 
 /**
  * Threads the expr through the forms
- * @param {boolean} first - Whether threading first (true) or last (false)
- * @param {*} x - The value to thread
- * @param {Array<Function|Array>} forms - Functions and/or arrays containing a function and args
+ * @param {boolean} first Whether threading first (true) or last (false)
+ * @param {*} x The value to thread
+ * @param {Array<Function|Array>} forms Functions and/or arrays containing a function and args
  *  to pass to it before/after x
- * @returns {*} - x, after it has been passed thru the forms
+ * @returns {*} x, after it has been passed thru the forms
  */
 const thread = (first, x, ...forms) => {
   const form = forms.shift()
@@ -35,12 +36,13 @@ class SelfbotUtil {
    * Compose (combine) the given functions
    * 
    * Functions are called from last to first.
-   * @param {Array<Function>} fns - The functions to compose
-   * @returns {Function} - The function composition
+   * @param {Array<Function>} fns The functions to compose
+   * @returns {Function} The function composition
    */
   static compose (...fns) {
     /**
-     * @param {*} arg
+     * @param {*} arg The value passed to the functions
+     * @returns {*}
      */
     return function (arg) {
       fns.reduceRight(composeReduce.bind(this), arg)
@@ -51,12 +53,13 @@ class SelfbotUtil {
    * Call (combine) the given functions in sequence
    * 
    * Functions are called from first to last.
-   * @param {Array<Function>} fns - The functions to compose in sequence
-   * @returns {Function} - The sequential function composition
+   * @param {Array<Function>} fns The functions to compose in sequence
+   * @returns {Function} The sequential function composition
    */
   static sequence (...fns) {
     /**
-     * @param {*} arg
+     * @param {*} arg The value passed to the functions
+     * @returns {*}
      */
     return function (arg) {
       fns.reduce(composeReduce.bind(this), arg)
@@ -72,10 +75,10 @@ class SelfbotUtil {
    * 
    * Passes x as the second item in the first form. If there are more forms, passes the first form
    * as the second item in second form, etc.
-   * @param {*} x - The value to thread
-   * @param {Array<Function|Array>} forms - Functions and/or arrays containing a function and args
+   * @param {*} x The value to thread
+   * @param {Array<Function|Array>} forms Functions and/or arrays containing a function and args
    *  to pass to it after x
-   * @returns {*} - x, after it has been passed thru the forms
+   * @returns {*} x, after it has been passed thru the forms
    */
   static threadFirst (x, ...forms) {
     return thread(true, x, ...forms)
@@ -86,10 +89,10 @@ class SelfbotUtil {
    * 
    * Passes x as the last item in the first form. If there are more forms, passes the first form
    * as the last item in second form, etc.
-   * @param {*} x - The value to thread
-   * @param {Array<Function|Array>} forms - Functions and/or arrays containing a function and args
+   * @param {*} x The value to thread
+   * @param {Array<Function|Array>} forms Functions and/or arrays containing a function and args
    *  to pass to it before x
-   * @returns {*} - x, after it has been passed thru the forms
+   * @returns {*} x, after it has been passed thru the forms
    */
   static threadLast (x, ...forms) {
     return thread(false, x, ...forms)

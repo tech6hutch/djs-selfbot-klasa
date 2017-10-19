@@ -35,25 +35,6 @@ module.exports = class extends Command {
         time in milliseconds to await promises; default is 10000`,
     })
 
-    // this.shortFlags = {
-    //   d: 'delete',
-    //   l: 'log',
-    //   p: 'noAwait',
-    //   o: 'outputTo',
-    //   s: 'silent',
-    //   w: 'wait',
-    // }
-
-    // this.longFlags = {
-    //   delete: 'delete',
-    //   depth: 'depth',
-    //   log: 'log',
-    //   'no-await': 'noAwait',
-    //   'output-to': 'outputTo',
-    //   silent: 'silent',
-    //   wait: 'wait',
-    // }
-
     this.defaults = {
       // The depth to inspect the evaled output to, if it's not a string
       depth: 0,
@@ -61,12 +42,8 @@ module.exports = class extends Command {
       wait: 10000,
     }
 
-    // The depth to inspect the evaled output to, if it's not a string
-    // this.inspectionDepth = 0
     // this.getTypeStr shouldn't recurse more than once, but just in case
     this.typeRecursionLimit = 2
-    // How long to wait for promises to resolve
-    // this.timeout = 10000
     // The number of lines before the output is considered overly long
     this.tooManyLines = 7
     // The approx. number of chars per line in a codeblock on Android, on a Google Pixel XL
@@ -82,38 +59,18 @@ module.exports = class extends Command {
   }
 
   async run (msg, [argStr]) {
-    assert(typeof argStr === 'string')
-
     const [ givenFlags, code ] = this.parseArgs(argStr)
 
     const flags = {
       delete: Boolean(givenFlags.delete || givenFlags.d),
       depth: parseInt(givenFlags.depth || this.defaults.depth, 10),
-      // log: Boolean(givenFlags.log || givenFlags.l),
       noAwait: Boolean(givenFlags['no-await'] || givenFlags.p),
-      // silent: Boolean(givenFlags.silent || givenFlags.s),
       outputTo: [ givenFlags['output-to'], givenFlags.o ].find(f => f in this.outputTo) ||
         (givenFlags.log || givenFlags.l ? 'log' : '') ||
         (givenFlags.silent || givenFlags.s ? 'none' : '') ||
         'channel',
       wait: parseInt(givenFlags.wait || givenFlags.w || this.defaults.wait, 10),
     }
-
-    // return msg.send(`flags: ${inspect(flags)}\ncode: ${inspect(code)}`)
-
-    // argStr.split(' ')
-    // this.client.console.log('all args:', inspect(arguments))
-    // this.client.console.log('raw args:', inspect({ mult, d, l, p, s, code }))
-    // mult = mult[0] || ''
-    // // use somewhere, idk: ^-[a-z]+$/
-    // const flags = {
-    //   delete: Boolean(d) || mult.includes('d'),
-    //   log: Boolean(l) || mult.includes('l'),
-    //   noAwait: Boolean(p) || mult.includes('p'),
-    //   silent: Boolean(s) || mult.includes('s'),
-    // }
-    // code = code.join(' ')
-    // this.client.console.log(inspect({ flags, code }))
 
     if (flags.delete) msg.delete()
 
@@ -148,33 +105,17 @@ module.exports = class extends Command {
   }
 
   parseArgs (argStr) {
-    assert(typeof argStr === 'string')
     const flagRegex = /^(--?)([a-z-]+)(=[a-z\d]*)?$/
     const args = String(argStr).split(' ')
     const codeIndex = args.findIndex((arg, i) => !flagRegex.test(arg) || arg === '--code')
     const argFlags = args.slice(0, codeIndex)
     const givenFlags = {}
     for (let argIndex = 0; argIndex < argFlags.length; argIndex++) {
-      assert(typeof argFlags[argIndex] === 'string')
-      assert(flagRegex.exec(argFlags[argIndex]))
-
       const [ , hyphen, flagName, value ] = flagRegex.exec(argFlags[argIndex])
-      assert(flagRegex.exec(argFlags[argIndex])[0] === argFlags[argIndex])
-      assert(typeof hyphen === 'string' && typeof flagName === 'string')
-      assert(hyphen === '-' || hyphen === '--')
-      assert(flagName.length > 0)
-      if (value) assert(value[0] === '=')
-      this.client.console.log(inspect({ hyphen, flagName, value }))
-
       if (hyphen === '-') {
-        for (let i = 0; i < flagName.length; i++) {
-          assert(typeof flagName[i] === 'string')
-          givenFlags[flagName[i]] = value ? value.slice(1) : true
-        }
-      } else if (hyphen === '--') {
-        assert(flagName !== 'code')
-        givenFlags[flagName] = value ? value.slice(1) : true
-      } else assert(false, 'Something has gone horribly wrong if this runs')
+        for (let i = 0; i < flagName.length; i++) givenFlags[flagName[i]] = value ? value.slice(1) : true
+      } else if (hyphen === '--') givenFlags[flagName] = value ? value.slice(1) : true
+      else assert(false, 'Something has gone horribly wrong if this runs')
     }
 
     return [
@@ -183,42 +124,15 @@ module.exports = class extends Command {
         ? codeIndex + 1
         : codeIndex).join(' '),
     ]
-
-    // for (arg = args.shift(); args.length > 0 && arg.startsWith('-'); arg = args.shift()) {
-    //   assert(typeof arg === 'string')
-
-    //   const argMatches = /^(--?)([a-z-]+)(=[a-z\d]*)?$/.exec(arg)
-    //   this.client.console.log('argMatches:', inspect(argMatches))
-    //   if (!argMatches) break
-    //   const [ _, hyphen, flagName, value ] = argMatches
-    //   assert(_ === arg)
-    //   assert(typeof hyphen === 'string' && typeof flagName === 'string')
-    //   assert(hyphen === '-' || hyphen === '--')
-    //   assert(flagName.length > 0)
-    //   if (value) assert(value[0] === '=')
-
-    //   this.client.console.log(inspect({ hyphen, flagName, value }))
-    //   if (hyphen === '-') {
-    //     for (let i = 0; i < flagName.length; i++) {
-    //       assert(typeof flagName[i] === 'string')
-    //       if (!(flagName[i] in this.shortFlags)) throw msg.sendCode('', `Error: Invalid flag "${flagName[i]}"`)
-    //       flags[this.shortFlags[flagName[i]]] = value ? value.slice(1) : true
-    //     }
-    //   } else if (hyphen === '--') {
-    //     if (flagName === 'code') {
-    //       arg = ''
-    //       break
-    //     }
-    //     if (!(flagName in this.longFlags)) throw msg.sendCode('', `Error: Invalid flag "${flagName}"`)
-    //     flags[this.longFlags[flagName]] = value ? value.slice(1) : true
-    //   } else {
-    //     assert(false, 'Something has gone horribly wrong if this runs, since I even fecking asserted for this earlier')
-    //   }
-    // }
-
-    // return [ flags, [arg, ...args].join(' ') ]
   }
 
+  /**
+   * Eval the code and get info on the type of the result.
+   * @param {Ojbect} flags The flags the command was called with.
+   * @param {string} code The code obvs.
+   * @param {DiscordMessage} msg The message, so it's available to the eval.
+   * @returns {Array<string>}
+   */
   async handleEval (flags, code, /* for the eval: */ msg) {
     const start = now()
     const evaledOriginal = eval(code) // eslint-disable-line no-eval
@@ -251,11 +165,22 @@ module.exports = class extends Command {
     return [evaledValue, topLine]
   }
 
+  /**
+   * Checks if the output will be more than 2,000 characters.
+   * @param {string} evaled The evaled output (as a string).
+   * @param {string} topLine The line with the type and time info.
+   * @returns {boolean}
+   */
   isTooLong (evaled, topLine) {
     // 1988 is 2000 - 12 (the chars that are added, "`...`\n```js\n...```")
     return evaled.length > 1988 - topLine.length
   }
 
+  /**
+   * Checks if the output will be...kinda long.
+   * @param {string} evaled The evaled output (as a string).
+   * @returns {{lineCount: number, kindaLong: boolean, becauseOfWrapping: boolean}}
+   */
   isKindaLong (evaled) {
     const lines = String(evaled).split('\n')
     const lineCount = lines.length
@@ -283,66 +208,121 @@ module.exports = class extends Command {
     }
   }
 
+  /**
+   * Get the type string of the evaled result.
+   * @param {Object} flags The flags the command was called with.
+   * @param {*} value The value to get the type string for.
+   * @param {?Promise} [awaitedPromise] The promise that was already `await`ed earlier. This also acts
+   *  as a surrogate, so that if the original promise was wrapped in a timeout promise, the original
+   *  promise can be examined, while the already-awaited surrogate is awaited.
+   * @param {number} [i=0] Just an iteration count to prevent infinite loops.
+   * @returns {string}
+   */
   async getTypeStr (flags, value, awaitedPromise = null, i = 0) {
-    if (!this.isThenable(value)) assert(!awaitedPromise, '`value` was not a promise, but a surrogate, already-awaited promise was still passed')
-    if (awaitedPromise) assert(typeof awaitedPromise === 'object' && awaitedPromise instanceof Promise, '`awaitedPromise` was provided, but it was not a promise')
-    assert(typeof i === 'number' && i >= 0)
-
-    // if (value instanceof TimeoutError) return `but it didn't resolve in ${this.getNiceDuration(flags.wait)}`
     if (value instanceof TimeoutError) return '?'
 
-    const {basicType, type} = this.getComplexType(value)
-    if (basicType === 'object' /* || basicType === 'function' */) {
+    const { basicType, type } = this.getComplexType(value)
+    if (basicType === 'object') {
       if (this.isThenable(value)) {
         return i <= this.typeRecursionLimit && !flags.noAwait
           // But we're gonna await the already-awaited promise, for efficiency
           ? `${type}<${await this.getTypeStr(flags, await awaitedPromise, null, i + 1)}>`
           : `${type}<?>`
       }
-      if (Array.isArray(value)) return `${type}<${this.getArrayType(value)}>`
-      if (value instanceof Map) return `${type}<${this.getMapType(value)}>`
-      if (value instanceof Set) return `${type}<${this.getSetType(value)}>`
-      return `${type}<${this.getObjectType(value)}>`
+      if (Array.isArray(value)) return `${type}${this.getArrayType(value)}`
+      if (value instanceof Map) return `${type}${this.getMapType(value)}`
+      if (value instanceof Set) return `${type}${this.getSetType(value)}`
+      return `${type}${this.getObjectType(value)}`
     }
+    if (basicType === 'function') return `${type}${this.getFunctionType(value)}`
     return type
   }
 
+  /**
+   * Get the type of value. A better version of the `typeof` operator, basically.
+   * @param {*} value The object or primitive whose type is to be returned.
+   * @returns {string}
+   */
   getType (value) {
     if (value == null) return String(value)
     return typeof value
   }
+  /**
+   * Get the class (constructor) name of value.
+   * @param {*} value The object whose class name is to be returned.
+   * @returns {string}
+   */
   getClass (value) {
     return value && value.constructor && value.constructor.name
       ? value.constructor.name
       : {}.toString.call(value).match(/\[object (\w+)\]/)[1]
   }
+  /**
+   * Get the type info for value.
+   * @param {*} value The object or primitive whose complex type is to be returned.
+   * @returns {{basicType: string, type: string}}
+   */
   getComplexType (value) {
     const basicType = this.getType(value)
-    if (basicType === 'object' || basicType === 'function') return {basicType, type: this.getClass(value)}
-    return {basicType, type: basicType}
+    if (basicType === 'object' || basicType === 'function') return { basicType, type: this.getClass(value) }
+    return { basicType, type: basicType }
   }
 
+  /**
+   * Get the arity of fn.
+   * @param {Function} fn The function whose arity is to be returned.
+   * @returns {string}
+   */
+  getFunctionType (fn) {
+    return `(${fn.length}-arity)`
+  }
+  /**
+   * Get the type of array's elements.
+   * @param {Array} array The array whose element type is to be returned.
+   * @param {number} [i=0] Just an iteration count to prevent infinite loops.
+   * @returns {string}
+   */
   getArrayType (array, i = 0) {
-    assert(Array.isArray(array))
-    return this._getObjType(array, i)
+    return `<${this._getObjType(array, i)}>`
   }
+  /**
+   * Get the type of obj's elements.
+   * @param {Object} obj The object whose element type is to be returned.
+   * @param {number} [i=0] Just an iteration count to prevent infinite loops.
+   * @returns {string}
+   */
   getObjectType (obj, i = 0) {
-    assert(this.getComplexType(obj).basicType === 'object')
     const type = this._getObjType(Object.values(obj), i)
-    return type.length > 0 ? `${this.getComplexType('').type}, ${type}` : ''
+    return type.length > 0 ? `<${this.getComplexType('').type}, ${type}>` : '<>'
   }
+  /**
+   * Get the type of map's values.
+   * @param {Map} map The map whose value type is to be returned.
+   * @param {number} [i=0] Just an iteration count to prevent infinite loops.
+   * @returns {string}
+   */
   getMapType (map, i = 0) {
-    assert(this.getComplexType(map).basicType === 'object')
     const keyType = this._getObjType(Array.from(map.keys()), i)
     const valueType = this._getObjType(Array.from(map.values()), i)
-    return valueType.length > 0 ? `${keyType}, ${valueType}` : ''
+    return valueType.length > 0 ? `<${keyType}, ${valueType}>` : '<>'
   }
+  /**
+   * Get the type of set's values.
+   * @param {Set} set The set whose value type is to be returned.
+   * @param {number} [i=0] Just an iteration count to prevent infinite loops.
+   * @returns {string}
+   */
   getSetType (set, i = 0) {
-    assert(this.getComplexType(set).basicType === 'object')
-    return this._getObjType(Array.from(set.values()), i)
+    return `<${this._getObjType(Array.from(set.values()), i)}>`
   }
+  /**
+   * Get the type of values's elements.
+   * @param {Array} values The array whose element type is to be returned.
+   * @param {number} i Just an iteration count to prevent infinite loops.
+   * @returns {string}
+   */
   _getObjType (values, i) {
-    assert(Array.isArray(values))
+    if (!Array.isArray(values)) throw new TypeError("You're using this function wrong; `values` must be an array")
     if (typeof i !== 'number') throw new TypeError('`i` is missing')
     // Collections have useful methods, which work on Sets.
     const Coll = this.client.methods.Collection.prototype
@@ -351,7 +331,6 @@ module.exports = class extends Command {
     const nonNullTypes = new Set()
     const nullTypes = new Set()
     for (const type of objTypes.values()) {
-      assert(typeof type === 'string')
       if (['null', 'undefined'].includes(type)) nullTypes.add(type)
       else nonNullTypes.add(type)
     }
@@ -360,40 +339,48 @@ module.exports = class extends Command {
     if (nonNullTypes.size === 1) {
       const type = Coll.first.call(nonNullTypes)
       const value = values.find(v => v != null)
-      assert(value)
-      this.client.console.log(value)
       const nestedType = this.getComplexType(value)
       let nestedTypeStr = ''
-      if (nestedType.basicType === 'object' && i < this.typeRecursionLimit) {
-        /**
-         * @todo Handle some specific object types, like Map and Set
-         */
-        if (Array.isArray(value)) nestedTypeStr = `<${this.getArrayType(value, i + 1)}>`
-        if (value instanceof Map) nestedTypeStr = `<${this.getMapType(value, i + 1)}>`
-        if (value instanceof Set) nestedTypeStr = `<${this.getSetType(value, i + 1)}>`
-        else nestedTypeStr = `<${this.getObjectType(value, i + 1)}>`
+      if (i < this.typeRecursionLimit) {
+        if (nestedType.basicType === 'object') {
+          if (Array.isArray(value)) nestedTypeStr = this.getArrayType(value, i + 1)
+          if (value instanceof Map) nestedTypeStr = this.getMapType(value, i + 1)
+          if (value instanceof Set) nestedTypeStr = this.getSetType(value, i + 1)
+          else nestedTypeStr = this.getObjectType(value, i + 1)
+        } else if (nestedType.basicType === 'function') nestedTypeStr = this.getFunctionType(value)
       }
       if (nullTypes.size > 0) return `?${type}${nestedTypeStr}`
       return `${type}${nestedTypeStr}`
     }
-    assert(nonNullTypes.size === 0)
 
     // No types besides, possibly, "null" and "undefined"
-    if (nullTypes.size > 1) { /* I dunno what to do, honestly */ }
+    if (nullTypes.size > 1) return 'null|undefined'
     if (nullTypes.size === 1) return Coll.first.call(nullTypes)
-    assert(nullTypes.size === 0)
 
     // No types at all, i.e. no elements at all
-    assert(objTypes.size === 0)
     return ''
   }
 
+  /**
+   * Present time duration in a nice way.
+   * @param {number} time A duration in milliseconds.
+   * @returns {string}
+   */
   getNiceDuration (time) {
     if (time >= 1000) return `${(time / 1000).toFixed(2)}s`
     if (time >= 1) return `${time.toFixed(2)}ms`
     return `${(time * 1000).toFixed(2)}μs`
   }
 
+  /**
+   * Ask the user what to do, when the output is too long to send to a Discord channel.
+   * @param {DiscordMessage} cmdMsg The command message.
+   * @param {string} topLine The line with the type and time.
+   * @param {string} evaled The evaled value (as a string).
+   * @param {string} question The question to ask the user.
+   * @param {{yes: string}} options Options for the query.
+   * @returns {?Promise<DiscordMessage>}
+   */
   async sendTooLongQuery (cmdMsg, topLine, evaled, question, options) {
     const queryMsg = await cmdMsg.channel.send(`${question} (10s til auto-cancel)`)
     try {
@@ -430,10 +417,24 @@ module.exports = class extends Command {
     }
   }
 
+  /**
+   * Determines whether the passed value is an Array.
+   * @param {*} value The value to be checked.
+   * @returns {boolean}
+   */
   isThenable (value) {
     return value && typeof value.then === 'function'
   }
 
+  /**
+   * Wrap a promise in a promise that will timeout in a certain amount of time.
+   * 
+   * Whichever promise (the inputted one or the timeout one) resolves first will have its value be
+   * the resolved value of the returned promise.
+   * @param {Promise} promise The promise to wrap.
+   * @param {number} timeout How long the new promise should wait before timing out.
+   * @returns {Promise}
+   */
   timeoutPromise (promise, timeout) {
     return Promise.race([promise, sleep(timeout, new TimeoutError('Promise timed out'))])
   }

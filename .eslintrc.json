@@ -10,6 +10,7 @@
   },
   "rules": {
     "comma-dangle": ["warn", "always-multiline"],
+    "eqeqeq": "error",
     "no-bitwise": "warn",
     "no-extra-parens": ["warn", "all", {
       "conditionalAssign": true

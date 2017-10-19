@@ -1,4 +1,4 @@
-// const { SelfbotUtil: ツ } = require.main.exports
+// const { util: ツ } = require.main.exports
 const { Monitor, util: { regExpEsc } } = require('klasa')
 
 module.exports = class extends Monitor {

@@ -4,7 +4,7 @@ const klasa = require('klasa')
 
 module.exports = {
   SelfbotCommand: require('./lib/SelfbotCommand'),
-  SelfbotUtil: require('./lib/util/util.js'),
+  util: require('./lib/util/util.js'),
 }
 
 class Selfbot extends klasa.Client {}

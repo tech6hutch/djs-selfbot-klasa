@@ -1,4 +1,4 @@
-const { SelfbotCommand, SelfbotUtil: { sequence } } = require.main.exports
+const { SelfbotCommand, util: { sequence } } = require.main.exports
 
 module.exports = class extends SelfbotCommand {
   constructor (...args) {

@@ -83,7 +83,6 @@ module.exports = class extends Command {
 
   async run (msg, [argStr]) {
     assert(typeof argStr === 'string')
-    this.client.console.log(`argStr: ${argStr}`)
 
     const [ givenFlags, code ] = this.parseArgs(argStr)
 
@@ -236,8 +235,8 @@ module.exports = class extends Command {
     if (!evaledIsThenable || evaledValue instanceof TimeoutError) evaledValue = evaledOriginal
 
     const time = evaledIsThenable && !flags.noAwait
-      ? `${this.getNiceDuration(syncEnd - start)} ➡ ${this.getNiceDuration(asyncEnd - syncEnd)}`
-      : `${this.getNiceDuration(syncEnd - start)}`
+      ? `⏱${this.getNiceDuration(syncEnd - start)}<${this.getNiceDuration(asyncEnd - syncEnd)}>`
+      : `⏱${this.getNiceDuration(syncEnd - start)}`
 
     if (flags.outputTo === 'none') return [evaledValue]
 
@@ -245,7 +244,7 @@ module.exports = class extends Command {
       flags,
       evaledOriginal,
       evaledIsThenable ? evaledTimeout : null
-    )}, ${time}`
+    )} ${time}`
 
     if (typeof evaledValue !== 'string') evaledValue = inspect(evaledValue, { depth: flags.depth })
 
@@ -289,34 +288,104 @@ module.exports = class extends Command {
     if (awaitedPromise) assert(typeof awaitedPromise === 'object' && awaitedPromise instanceof Promise, '`awaitedPromise` was provided, but it was not a promise')
     assert(typeof i === 'number' && i >= 0)
 
-    if (value instanceof TimeoutError) return `but it didn't resolve in ${this.getNiceDuration(flags.wait)}`
+    // if (value instanceof TimeoutError) return `but it didn't resolve in ${this.getNiceDuration(flags.wait)}`
+    if (value instanceof TimeoutError) return '?'
 
-    const basicType = typeof value
-    if (basicType === 'object') {
-      // The typeof operator mistakenly calls `null` an object
-      if (value === null) return 'null primitive'
-
-      let objType = value.constructor.name
-      if (this.isThenable(value)) { // a promise, or more precisely, a thenable
-        if (objType !== 'Promise') objType += ' promise'
+    const {basicType, type} = this.getComplexType(value)
+    if (basicType === 'object' /* || basicType === 'function' */) {
+      if (this.isThenable(value)) {
         return i <= this.typeRecursionLimit && !flags.noAwait
           // But we're gonna await the already-awaited promise, for efficiency
-          ? `awaited ${objType} object ➡ ${await this.getTypeStr(flags, await awaitedPromise, null, i + 1)}`
-          : `${objType} object`
-      } else if (value instanceof Boolean || value instanceof Number || value instanceof String) {
-        return `${objType} object (not a primitive!)`
+          ? `${type}<${await this.getTypeStr(flags, await awaitedPromise, null, i + 1)}>`
+          : `${type}<?>`
       }
+      if (Array.isArray(value)) return `${type}<${this.getArrayType(value)}>`
+      if (value instanceof Map) return `${type}<${this.getMapType(value)}>`
+      if (value instanceof Set) return `${type}<${this.getSetType(value)}>`
+      return `${type}<${this.getObjectType(value)}>`
+    }
+    return type
+  }
 
-      if (objType === 'Object') objType = 'plain'
-      return `${objType} object`
-    } else if (basicType === 'function') {
-      const objType = value.constructor.name
-      return objType === 'Function'
-        ? `${basicType} object`
-        : `${objType} ${basicType} object`
+  getType (value) {
+    if (value == null) return String(value)
+    return typeof value
+  }
+  getClass (value) {
+    return value && value.constructor && value.constructor.name
+      ? value.constructor.name
+      : {}.toString.call(value).match(/\[object (\w+)\]/)[1]
+  }
+  getComplexType (value) {
+    const basicType = this.getType(value)
+    if (basicType === 'object' || basicType === 'function') return {basicType, type: this.getClass(value)}
+    return {basicType, type: basicType}
+  }
+
+  getArrayType (array, i = 0) {
+    assert(Array.isArray(array))
+    return this._getObjType(array, i)
+  }
+  getObjectType (obj, i = 0) {
+    assert(this.getComplexType(obj).basicType === 'object')
+    const type = this._getObjType(Object.values(obj), i)
+    return type.length > 0 ? `${this.getComplexType('').type}, ${type}` : ''
+  }
+  getMapType (map, i = 0) {
+    assert(this.getComplexType(map).basicType === 'object')
+    const keyType = this._getObjType(Array.from(map.keys()), i)
+    const valueType = this._getObjType(Array.from(map.values()), i)
+    return valueType.length > 0 ? `${keyType}, ${valueType}` : ''
+  }
+  getSetType (set, i = 0) {
+    assert(this.getComplexType(set).basicType === 'object')
+    return this._getObjType(Array.from(set.values()), i)
+  }
+  _getObjType (values, i) {
+    assert(Array.isArray(values))
+    if (typeof i !== 'number') throw new TypeError('`i` is missing')
+    // Collections have useful methods, which work on Sets.
+    const Coll = this.client.methods.Collection.prototype
+
+    const objTypes = new Set(values.map(v => this.getComplexType(v).type))
+    const nonNullTypes = new Set()
+    const nullTypes = new Set()
+    for (const type of objTypes.values()) {
+      assert(typeof type === 'string')
+      if (['null', 'undefined'].includes(type)) nullTypes.add(type)
+      else nonNullTypes.add(type)
     }
 
-    return `${basicType} primitive`
+    if (nonNullTypes.size > 1) return '*'
+    if (nonNullTypes.size === 1) {
+      const type = Coll.first.call(nonNullTypes)
+      const value = values.find(v => v != null)
+      assert(value)
+      this.client.console.log(value)
+      const nestedType = this.getComplexType(value)
+      let nestedTypeStr = ''
+      if (nestedType.basicType === 'object' && i < this.typeRecursionLimit) {
+        /**
+         * @todo Handle some specific object types, like Map and Set
+         */
+        if (Array.isArray(value)) nestedTypeStr = `<${this.getArrayType(value, i + 1)}>`
+        if (value instanceof Map) nestedTypeStr = `<${this.getMapType(value, i + 1)}>`
+        if (value instanceof Set) nestedTypeStr = `<${this.getSetType(value, i + 1)}>`
+        else nestedTypeStr = `<${this.getObjectType(value, i + 1)}>`
+      }
+      if (nullTypes.size > 0) return `?${type}${nestedTypeStr}`
+      return `${type}${nestedTypeStr}`
+    }
+    assert(nonNullTypes.size === 0)
+
+    // No types besides, possibly, "null" and "undefined"
+    if (nullTypes.size > 1) { /* I dunno what to do, honestly */ }
+    if (nullTypes.size === 1) return Coll.first.call(nullTypes)
+    assert(nullTypes.size === 0)
+
+    // No types at all, i.e. no elements at all
+    assert(objTypes.size === 0)
+    return ''
   }
 
   getNiceDuration (time) {

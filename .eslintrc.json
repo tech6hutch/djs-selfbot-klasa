@@ -16,6 +16,9 @@
     "no-extra-parens": ["warn", "all", {
       "conditionalAssign": true
     }],
+    "no-trailing-spaces": ["error", {
+      "ignoreComments": false
+    }],
     "no-var": "error",
     "prefer-const": "warn",
     "valid-jsdoc": ["warn", {

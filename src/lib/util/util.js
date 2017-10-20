@@ -193,7 +193,7 @@ class SelfbotUtil {
 
   /**
    * Wrap a promise in a promise that will timeout in a certain amount of time.
-   * 
+   *
    * Whichever promise (the inputted one or the timeout one) resolves first will have its value be
    * the resolved value of the returned promise.
    * @param {Promise} promise The promise to wrap.
@@ -217,7 +217,7 @@ class SelfbotUtil {
 
   /**
    * Compose (combine) the given functions
-   * 
+   *
    * Functions are called from last to first.
    * @param {Array<Function>} fns The functions to compose
    * @returns {Function} The function composition
@@ -234,7 +234,7 @@ class SelfbotUtil {
 
   /**
    * Call (combine) the given functions in sequence
-   * 
+   *
    * Functions are called from first to last.
    * @param {Array<Function>} fns The functions to compose in sequence
    * @returns {Function} The sequential function composition
@@ -255,7 +255,7 @@ class SelfbotUtil {
 
   /**
    * Threads the expr through the forms
-   * 
+   *
    * Passes x as the second item in the first form. If there are more forms, passes the first form
    * as the second item in second form, etc.
    * @param {*} x The value to thread
@@ -269,7 +269,7 @@ class SelfbotUtil {
 
   /**
    * Threads the expr through the forms
-   * 
+   *
    * Passes x as the last item in the first form. If there are more forms, passes the first form
    * as the last item in second form, etc.
    * @param {*} x The value to thread

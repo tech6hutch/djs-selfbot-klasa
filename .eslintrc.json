@@ -12,9 +12,10 @@
     "comma-dangle": ["warn", "always-multiline"],
     "consistent-return": "error",
     "eqeqeq": "error",
-    "no-bitwise": "warn",
+    "no-bitwise": "error",
     "no-extra-parens": ["warn", "all", {
-      "conditionalAssign": true
+      "conditionalAssign": true,
+      "nestedBinaryExpressions": false
     }],
     "no-trailing-spaces": ["error", {
       "ignoreComments": false

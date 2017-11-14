@@ -1,7 +1,10 @@
 const { SelfbotCommand } = require.main.exports
-const { util } = require('klasa')
+const { util,
+  Gateway, Language } = require('klasa') // eslint-disable-line no-unused-vars
+const { Collection,
+  Message, Guild } = require('discord.js') // eslint-disable-line no-unused-vars
 
-module.exports = class extends SelfbotCommand {
+module.exports = class Tag extends SelfbotCommand {
   constructor (...args) {
     super(...args, {
       aliases: ['tags'],
@@ -67,8 +70,8 @@ module.exports = class extends SelfbotCommand {
   }
 
   /**
-   * @param {SettingResolver} resolver
-   * @param {string} tag
+   * @param {SettingResolver} resolver The setting resolver thingy
+   * @param {string} tag The tag name, I think?
    * @returns {Promise<string>}
    */
   async validate (resolver, tag) {
@@ -87,9 +90,9 @@ module.exports = class extends SelfbotCommand {
   }
 
   /**
-   * @param {DiscordMessage} msg
-   * @param {string[]} args
-   * @returns {Promise<DiscordMessage>}
+   * @param {Message} msg The command message
+   * @param {string[]} args The args passed to the command
+   * @returns {Promise<Message>}
    */
   async run (msg, [action, tagname, ...contents]) {
     contents = contents[0] ? contents.join(' ') : null
@@ -111,8 +114,8 @@ module.exports = class extends SelfbotCommand {
   }
 
   /**
-   * @param {string} tagname
-   * @param {{returnTag: boolean}} options
+   * @param {string} tagname The tag name
+   * @param {{returnTag: boolean}} options Options
    * @returns {boolean|{id: string, contents: string}}
    */
   exists (tagname, {returnTag} = {returnTag: false}) {
@@ -130,8 +133,8 @@ module.exports = class extends SelfbotCommand {
   }
 
   /**
-   * @param {Language} lang
-   * @param {string} tagname
+   * @param {Language} lang The language object
+   * @param {string} tagname The tag name
    * @returns {Promise<string>}
    */
   async getRun (lang, tagname) {
@@ -141,35 +144,37 @@ module.exports = class extends SelfbotCommand {
   }
 
   /**
-   * @param {Language} lang
-   * @param {string} tagname
-   * @param {string} contents
+   * @param {Language} lang The language object
+   * @param {string} tagname The tag name
+   * @param {string} contents The contents of the new tag
    * @returns {Promise<string>}
    */
   async addRun (lang, tagname, contents) {
     if (this.exists(tagname)) return lang.get('COMMAND_TAG_ALREADY_EXISTS', tagname)
+    if (!contents) return lang.get('COMMAND_TAG_CONTENT_REQUIRED')
 
     await this.db.createEntry(tagname, { contents })
     return lang.get('COMMAND_TAG_ADDED', tagname)
   }
 
   /**
-   * @param {Language} lang
-   * @param {string} tagname
-   * @param {string} contents
-   * @param {DiscordGuild} guild
+   * @param {Language} lang The language object
+   * @param {string} tagname The tag name
+   * @param {string} contents The new contents of the tag
+   * @param {Guild} guild The guild the message was sent in, if any
    * @returns {Promise<string>}
    */
   async editRun (lang, tagname, contents, guild) {
     if (!this.exists(tagname)) return lang.get('COMMAND_TAG_DOESNT_EXIST', tagname)
+    if (!contents) return lang.get('COMMAND_TAG_CONTENT_REQUIRED')
 
     await this.db.updateOne(tagname, 'contents', contents, guild)
     return lang.get('COMMAND_TAG_EDITED', tagname)
   }
 
   /**
-   * @param {Language} lang
-   * @param {string} tagname
+   * @param {Language} lang The language object
+   * @param {string} tagname The tag name
    * @returns {Promise<string>}
    */
   async delRun (lang, tagname) {
@@ -180,12 +185,50 @@ module.exports = class extends SelfbotCommand {
   }
 
   /**
-   * @param {Language} lang
+   * @param {Language} lang The language object
    * @returns {Promise<string>}
    */
   async listRun (lang) {
-    const tagStr = this.db.cache.getKeys('tags').join(', ')
+    const nestedTags = Tag.parseAndSortDottedTags(this.db.cache.getKeys('tags'))
+    // ;
+    //   .map(tagname => tagname.split('.'))
+    //   .sort((a, b) => {
+    //     const len = Math.max(aArray.length, bArray.length)
+    //     for (let i = 0; i < len; i++) {
+
+    //     }
+    //     return aArray.length === bArray.length
+    //       ? a.localeCompare(b)
+    //       : a.split('.').length - b.split('.').length
+    //   })
+    //   .join('\n')
+    const tagStr = require('util').inspect(nestedTags)
     if (tagStr) return lang.get('COMMAND_TAG_LIST', util.codeBlock('', tagStr))
     return lang.get('COMMAND_TAG_NO_TAGS')
+  }
+
+  /**
+   * Given a dotted array, parse it, generating a new collection with all the dotted tags parsed
+   * @param {Array<string>} rawArray The array of tag names
+   * @returns {Collection<string, (string|Collection<string, *>)>}
+   */
+  static parseAndSortDottedTags (rawArray) {
+    const coll = new Collection([
+      ['_root', []],
+    ])
+    for (const dottedTag of rawArray) {
+      if (dottedTag.indexOf('.') === -1) coll.get('_root').push(dottedTag)
+      const path = dottedTag.split('.')
+      let tempPath = coll
+      for (let i = 0; i < path.length - 1; i++) {
+        tempPath.sort()
+        if (typeof tempPath.get(path[i]) === 'undefined') tempPath.set(path[i], new Collection())
+        tempPath = tempPath.get(path[i])
+      }
+      tempPath.set(path[path.length - 2], path[path.length - 1])
+      tempPath.sort()
+    }
+    coll.get('_root').sort()
+    return coll
   }
 }

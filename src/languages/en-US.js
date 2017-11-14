@@ -97,6 +97,9 @@ module.exports = class extends Language {
       COMMAND_CONF_GET: (key, value) => `The value for the key **${key}** is: \`${value}\``,
       COMMAND_CONF_RESET: (key, response) => `The key **${key}** has been reset to: \`${response}\``,
 
+      // My framework
+      COMMANDMESSAGE_FLAG_MISSING_OPTIONALS: (flag, possibles) => `Flag ${flag} missing a required option: (${possibles})`,
+      COMMANDMESSAGE_FLAG_NOMATCH: (flag, possibles) => `Your option for ${flag} didn't match any of the possibilities: (${possibles})`,
       // My commands
       COMMAND_TAG_ADDED: (tagname) => `Added tag \`${tagname}\``,
       COMMAND_TAG_EDITED: (tagname) => `Updated tag \`${tagname}\``,
@@ -105,6 +108,7 @@ module.exports = class extends Language {
       COMMAND_TAG_NO_TAGS: 'There are no tags.',
       COMMAND_TAG_DOESNT_EXIST: (tagname) => `Tag \`${tagname}\` doesn't exist`,
       COMMAND_TAG_ALREADY_EXISTS: (tagname) => `Tag \`${tagname}\` already exists`,
+      COMMAND_TAG_CONTENT_REQUIRED: 'Tags cannot be empty.',
     }
   }
 }

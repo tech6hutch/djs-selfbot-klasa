@@ -1,6 +1,6 @@
 {
   "name": "hutch-selfbot-klasa",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "My selfbot",
   "main": "src/app.js",
   "engines": {
@@ -14,9 +14,11 @@
     "fast-html-parser": "^1.0.1",
     "klasa": "github:dirigeants/klasa#SettingGateway-Rewrite",
     "moment": "^2.19.1",
-    "snekfetch": "^3.5.3"
+    "snekfetch": "^3.5.3",
+    "yargs": "^10.0.3"
   },
   "devDependencies": {
+    "@types/yargs": "^8.0.2",
     "eslint": "^4.7.2",
     "eslint-config-standard": "*",
     "eslint-plugin-import": "^2.7.0",
@@ -34,5 +36,8 @@
   },
   "author": "Hutch Moore",
   "license": "MIT",
-  "homepage": "https://github.com/tech6hutch/djs-selfbot-klasa#readme"
+  "homepage": "https://github.com/tech6hutch/djs-selfbot-klasa#readme",
+  "yargs": {
+    "populate--": true
+  }
 }

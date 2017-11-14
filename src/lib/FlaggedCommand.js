@@ -1,3 +1,4 @@
+const typesYargs = require('@types/yargs') // eslint-disable-line no-unused-vars
 const { SelfbotCommand } = require.main.exports
 
 class FlaggedCommand extends SelfbotCommand {
@@ -11,34 +12,32 @@ class FlaggedCommand extends SelfbotCommand {
     super(client, dir, file, options)
 
     /**
-     * The number of flags this command has
-     * @type {int}
+     * Whether to preserve duplicate spaces in the post-flags args
+     * @type {boolean}
      */
-    this.flagCount = Object.keys(options.flags).length
+    this.preserveNonFlagSpaces = options.preserveNonFlagSpaces || false
   }
 
-  async run (...args) {
-    let flagArgs = []
-    if (args.length < 1) return this.flaggedRun()
-    if (this.usageDelim === ' ') {
-      // for (let i = 0; i < this.flagCount; i++) {
-      //   if (args[0] && args[0].startsWith('-')) {
-      //
-      //   }
-      // }
-      while (args.length > 0) {
-        const firstArg = args[0]
-        if (!(typeof firstArg === 'string' && firstArg.startsWith('-'))) break
-        flagArgs.push(args.shift())
-      }
-    } else if (typeof args[0] === 'string' && args[0].startsWith('-')) {
-      flagArgs = args[0].split(' ')
+  /**
+   * @param {string|Array<string>} argStrOrArray To pass to yargs
+   * @returns {Promise<typesYargs>}
+   */
+  async parseArgs (argStrOrArray) {
+    const flags = require('yargs')
+      .exitProcess(false) // don't wanna exit the process lul
+      .parse(argStrOrArray)
+
+    // Set the script name to this command's name
+    flags.$0 = this.name
+
+    if (this.preserveNonFlagSpaces && flags['--'] && flags['--'].length > 0) {
+      if (typeof argStrOrArray === 'string') argStrOrArray = argStrOrArray.split(' ')
+      // If not found, slice from Infinity instead of -1 + 1 = falsey 0.
+      const argsArray = argStrOrArray.slice((argStrOrArray.indexOf('--') + 1) || Infinity)
+      flags['--'] = argsArray.join(' ')
     }
-    args[0]
-  }
 
-  async flaggedRun () {
-    throw new Error("You're supposed to extend this class.")
+    return flags
   }
 }
 

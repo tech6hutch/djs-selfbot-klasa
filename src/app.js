@@ -4,6 +4,7 @@ const klasa = require('klasa')
 
 module.exports = {
   SelfbotCommand: require('./lib/SelfbotCommand'),
+  FlaggedCommand: require('./lib/FlaggedCommand'),
   util: require('./lib/util/util.js'),
   imgURL: 'https://cdn.glitch.com/c726970b-47a8-42de-977b-385c6266279a/',
 }

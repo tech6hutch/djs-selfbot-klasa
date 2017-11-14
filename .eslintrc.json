@@ -10,6 +10,7 @@
   },
   "rules": {
     "comma-dangle": ["warn", "always-multiline"],
+    "complexity": "warn",
     "consistent-return": "error",
     "eqeqeq": "error",
     "no-bitwise": "error",
@@ -17,6 +18,7 @@
       "conditionalAssign": true,
       "nestedBinaryExpressions": false
     }],
+    "no-lonely-if": "warn",
     "no-trailing-spaces": ["error", {
       "ignoreComments": false
     }],

@@ -1,50 +1,59 @@
-const assert = require('assert')
+// const assert = require('assert')
 const { inspect } = require('util')
-const now = require('performance-now')
-const { MessageAttachment } = require('discord.js')
-const { Command } = require('klasa')
-const { util } = require.main.exports
+const { MessageAttachment,
+  Message } = require('discord.js') // eslint-disable-line no-unused-vars
+const { Stopwatch,
+  Language } = require('klasa') // eslint-disable-line no-unused-vars
+const { SelfbotCommand, util } = require.main.exports
 
-module.exports = class extends Command {
+module.exports = class Eval extends SelfbotCommand {
   constructor (...args) {
     super(...args, {
       aliases: ['ev'],
       permLevel: 10,
       description: 'Evaluates arbitrary JavaScript. Reserved for bot owner.',
       usage: '<expression:str>',
-      extendedHelp: `Flags:
+      extendedHelp: `Args:
+
+You can specify if \`expression\` is \`sync\` (default) or \`async\` (to enable use of the \`await\` keyword from within the expression).
+E.g.: \`(prefix)eval async const m = await msg.send('text'); m.content\`
+The \`async\` arg implicitly wraps \`expression\` in \`(async () => { ... })()\`.
+
+Flags:
+
+--code[=MODE]
+        if provided, marks the end of flag arguments (useful if \`expression\`, e.g., starts with a negative number); MODE can be 'sync' (default) or 'async'; if the latter, \`expression\` is wrapped in an async function, to provide use of the \`await\` keyword (NOT IMPLEMENTED YET)
+        as implied above, '--code=' is optional before MODE
 
 -d, --delete
         delete the command message
 
 --inspect=DEPTH
-        the number of times to recurse while formatting the result; default 0
+        the number of times to recur while formatting the result; default 0
 
 -l, --log
-        send the result to the console instead of Discord; cannot be combined with -s (overridden by -o)
+        alias of --output-to=log; cannot be combined with -s
 
 -p, --no-await
         don't await the result if it's a promise
 
 -o, --output-to=[WHERE]
-        output the result to WHERE; WHERE can be 'channel' (default), 'log' (-l), 'upload', or 'none' / '' (-s); if provided, -l and -s are ignored
+        output the result to WHERE; WHERE can be 'channel' (default), 'log' (-l), 'upload', or 'none' / '' (-s); if provided, the aliases are ignored
 
 -s, --silent
-        eval the code without showing the result; cannot be combined with -l (overridden by -o)
+        alias of --output-to=none; cannot be combined with -l
 
 -w, --wait=TIME
         time in milliseconds to await promises; default is 10000`,
     })
 
     this.defaults = {
-      // The depth to inspect the evaled output to, if it's not a string
-      inspectionDepth: 0,
+      // The depth to inspect the evaled output to
+      depth: 0,
       // How long to wait for promises to resolve
       wait: 10000,
     }
 
-    // The depth to get the types of nested data structures, recursively
-    this.typeDepth = 2
     // The number of lines before the output is considered overly long
     this.tooManyLines = 7
     // The approx. number of chars per line in a codeblock on Android, on a Google Pixel XL
@@ -53,24 +62,24 @@ module.exports = class extends Command {
     // How the evaled result is outputted
     this.outputTo = {
       /**
-       * @param {DiscordMessage} msg The command message
+       * @param {Message} msg The command message
        * @param {string} evaled The evaled output (as a string).
        * @param {string} topLine The line with the type and time info.
-       * @returns {Promise<DiscordMessage>}
+       * @returns {Promise<Message>}
        */
       channel: (msg, evaled, topLine) => msg.send(`\`${topLine}\`\n${this.client.methods.util.codeBlock('js', this.client.methods.util.clean(evaled))}`),
       /**
-       * @param {DiscordMessage} msg The command message
+       * @param {Message} msg The command message
        * @param {string} evaled The evaled output (as a string).
        * @param {string} topLine The line with the type and time info.
        * @returns {Promise<boolean>}
        */
       log: async (msg, evaled, topLine) => this.client.emit('log', `${topLine}\n${evaled}`),
       /**
-       * @param {DiscordMessage} msg The command message
+       * @param {Message} msg The command message
        * @param {string} evaled The evaled output (as a string).
        * @param {string} topLine The line with the type and time info.
-       * @returns {Promise<DiscordMessage>}
+       * @returns {Promise<Message>}
        */
       upload: (msg, evaled, topLine) => msg.channel.send(`\`${topLine}\``, new MessageAttachment(Buffer.from(`// ${topLine}\n${evaled}`), 'eval.js')),
       /**
@@ -84,6 +93,7 @@ module.exports = class extends Command {
    * @typedef Flags
    * @property {boolean} delete
    * @property {number} inspectionDepth
+   * @property {boolean} isAsync
    * @property {boolean} noAwait
    * @property {string} outputTo
    * @property {number} wait
@@ -91,29 +101,17 @@ module.exports = class extends Command {
 
   /**
    * Run the eval command
-   * @param {DiscordMessage} msg The command message
+   * @param {Message} msg The command message
    * @param {Array<string>} args The args passed to the command
-   * @returns {?Promise<DiscordMessage>}
+   * @returns {?Promise<Message>}
    */
   async run (msg, [argStr]) {
-    const { givenFlags, code } = this.parseArgs(argStr)
-
-    /** @type {Flags} */
-    const flags = {
-      delete: Boolean(givenFlags.delete || givenFlags.d),
-      inspectionDepth: parseInt(givenFlags.inspect || this.defaults.inspectionDepth, 10),
-      noAwait: Boolean(givenFlags['no-await'] || givenFlags.p),
-      outputTo: [givenFlags['output-to'], givenFlags.o].find(f => f in this.outputTo) ||
-        (givenFlags.log || givenFlags.l ? 'log' : '') ||
-        (givenFlags.silent || givenFlags.s ? 'none' : '') ||
-        'channel',
-      wait: parseInt(givenFlags.wait || givenFlags.w || this.defaults.wait, 10),
-    }
+    const { flags, code } = await this.parseArgs(msg.language, argStr)
 
     if (flags.delete) msg.delete()
 
     try {
-      const { evaled, topLine } = await this.handleEval(flags, code, /* for the eval: */ msg)
+      const { evaled, topLine } = await this.eval(flags, code, /* for the eval: */ msg)
 
       if (flags.outputTo === 'log') return this.outputTo.log(msg, evaled, topLine)
       if (flags.outputTo === 'upload') return this.outputTo.upload(msg, evaled, topLine)
@@ -144,65 +142,142 @@ module.exports = class extends Command {
 
   /**
    * Parse the command arguments
+   * @param {Language} lang The language object
    * @param {string} argStr The arguments passed to the command
-   * @returns {{givenFlags: Object<string, string>, code: string}}
+   * @returns {{flags: Flags, code: string}}
    */
-  parseArgs (argStr) {
-    const flagRegex = /^(--?)([a-z-]+)(=[a-z\d]*)?$/
-    const args = String(argStr).split(' ')
-    const codeIndex = args.findIndex((arg, i) => !flagRegex.test(arg) || arg === '--code')
-    const argFlags = args.slice(0, codeIndex)
-    const givenFlags = {}
-    for (let argIndex = 0; argIndex < argFlags.length; argIndex++) {
-      const [ , hyphen, flagName, value ] = flagRegex.exec(argFlags[argIndex])
-      if (hyphen === '-') {
-        for (let i = 0; i < flagName.length; i++) givenFlags[flagName[i]] = value ? value.slice(1) : true
-      } else if (hyphen === '--') givenFlags[flagName] = value ? value.slice(1) : true
-      else assert(false, 'Something has gone horribly wrong if this runs')
-    }
+  async parseArgs (lang, argStr) {
+    const flagsAndArgs = this.parseFlags(argStr.split(' '), 'code')
+    const flags = await this.validateFlags(lang, flagsAndArgs.flags, {
+      code: { possibilities: [true, 'sync', 'async'] },
+    }).then(flags => ({
+      delete: Boolean(flags.delete || flags.d),
+      inspectionDepth: parseInt(flags.inspect || this.defaults.depth, 10),
+      isAsync: flags.code === 'async',
+      noAwait: Boolean(flags['no-await'] || flags.p),
+      outputTo: [flags['output-to'], flags.o].find(f => f in this.outputTo) ||
+        (flags.log || flags.l ? 'log' : '') ||
+        (flags.silent || flags.s ? 'none' : '') ||
+        'channel',
+      wait: parseInt(flags.wait || flags.w || this.defaults.wait, 10),
+    }))
 
     return {
-      givenFlags,
-      code: args.slice(args[codeIndex] === '--code' && codeIndex + 1 < args.length
-        ? codeIndex + 1
-        : codeIndex).join(' '),
+      flags,
+      code: flagsAndArgs.args.join(' '),
     }
   }
 
   /**
+   * Parse the flag arguments
+   * @param {Array<string>} args All arguments, including flags
+   * @param {string} [lastFlag] If provided, all flag parsing will stop at this flag (inclusive)
+   * @returns {{flags: Object<string, (true|string)>, args: Array<string>}}
+   */
+  parseFlags (args, lastFlag) {
+    const flagRE = /^(--?)([^=]+)(=.*)?$/i
+
+    let argsStartIndex = args
+      .findIndex(lastFlag ? arg => arg[0] !== '-' || arg === lastFlag : arg => arg[0] !== '-')
+    if (lastFlag && args[argsStartIndex] === lastFlag) argsStartIndex++
+
+    const flagArgs = args.splice(0, argsStartIndex)
+    const flags = {}
+    for (let i = 0; i < flagArgs.length; i++) {
+      const [ , hyphen, flagName, value ] = flagRE
+        .exec(flagArgs[i])
+        .map(res => res ? res.toLowerCase() : res)
+      if (hyphen === '-') {
+        for (let i = 0; i < flagName.length; i++) flags[flagName[i]] = value ? value.slice(1) : true
+      } else {
+        flags[flagName] = value ? value.slice(1) : true
+      }
+    }
+
+    return { flags, args }
+  }
+
+  /**
+   * @typedef FlagType
+   * @property {string} [requiresOption=no] "no", "never", or "always"
+   * @property {Array} [possibilities]
+   */
+
+  /**
+   * Validate the flag arguments
+   * @param {Language} lang The language object
+   * @param {Object<string, (true|string)>} flags The flags
+   * @param {Object<string, FlagType>} flagTypes Types to check against the flags
+   * @param {Function} [addlValidator] Additional validation, if needed
+   * @returns {Promise<Object<string, string>>}
+   */
+  async validateFlags (lang, flags, flagTypes, addlValidator = () => true) {
+    for (const flag in flagTypes) {
+      if (!flagTypes.hasOwnProperty(flag)) continue
+      const { requiresOption = false, possibilities } = flagTypes[flag]
+      const flagValue = flags[flag]
+      /**
+       * Depending on what was provided to the flag, flagValue can be:
+       * flag not provided : undefined
+       *                -f : true
+       *            --flag : true
+       *           --flag= : ""
+       *      --flag=thing : "thing"
+       */
+      if (flagValue !== undefined) {
+        if (requiresOption && flagValue === true) {
+          throw this.client.methods.util.codeBlock('JSON',
+            lang.get('COMMANDMESSAGE_FLAG_MISSING_OPTIONALS', flag, possibilities.filter(poss => poss !== true).join(', ')))
+        }
+        if (possibilities && possibilities.indexOf(flagValue) === -1) {
+          throw this.client.methods.util.codeBlock('JSON',
+            lang.get('COMMANDMESSAGE_FLAG_NOMATCH', flag, possibilities.filter(poss => poss !== true).join(', ')))
+        }
+      }
+      await addlValidator(flag, flagValue, lang)
+    }
+
+    return flags
+  }
+
+  /**
    * Eval the code and get info on the type of the result
+   * @todo Maybe add no. of duration digits as a flag
    * @param {Flags} flags The flags the command was called with
    * @param {string} code The code obvs
-   * @param {DiscordMessage} msg The message, so it's available to the eval
+   * @param {Message} msg The message, so it's available to the eval
    * @returns {{evaled: string, topLine: string}}
    */
-  async handleEval (flags, code, /* for the eval: */ msg) {
-    const start = now()
+  async eval (flags, code, /* for the eval: */ msg) {
+    const stopwatchSync = new Stopwatch()
     const evaledOriginal = eval(code) // eslint-disable-line no-eval
-    const syncEnd = now()
+    stopwatchSync.stop()
+
+    const stopwatchAsync = new Stopwatch()
     const evaledTimeout = util.timeoutPromise(evaledOriginal, flags.wait)
     // Awaiting a non-promise returns the non-promise
     let evaledValue = flags.noAwait ? evaledOriginal : await evaledTimeout
-    const asyncEnd = now()
+    stopwatchAsync.stop()
 
     const evaledIsThenable = util.isThenable(evaledOriginal)
 
-    // We're doing this checking here so it's not counted in the performance-now timeing
+    // We're doing this checking here so it's not counted in the stopwatch timing
     // And if the promise timed out, just show the promise
     if (!evaledIsThenable || evaledValue instanceof util.TimeoutError) evaledValue = evaledOriginal
 
-    const time = evaledIsThenable && !flags.noAwait
-      ? `⏱${util.getNiceDuration(syncEnd - start)}<${util.getNiceDuration(asyncEnd - syncEnd)}>`
-      : `⏱${util.getNiceDuration(syncEnd - start)}`
+    const timeStr = evaledIsThenable && !flags.noAwait
+      ? `⏱${stopwatchSync}<${stopwatchAsync}>`
+      : `⏱${stopwatchSync}`
 
     if (flags.outputTo === 'none') return { evaled: evaledValue }
 
-    const topLine = `${await this.getTypeStr(
-      flags,
-      evaledOriginal,
-      evaledIsThenable ? evaledTimeout : null
-    )} ${time}`
+    const topLine = `${await util.getJSDocString(evaledOriginal, {
+      depth: flags.inspectionDepth + 1,
+      wait: flags.noAwait ? 0 : flags.wait,
+      surrogatePromise: evaledIsThenable ? evaledTimeout : null,
+    })} ${timeStr}`
 
+    /** @todo Add more logic for string conversion / inspection, depending on type; see <#261102185759244289> */
     if (typeof evaledValue !== 'string') evaledValue = inspect(evaledValue, { depth: flags.inspectionDepth })
 
     return { evaled: evaledValue, topLine }
@@ -252,43 +327,13 @@ module.exports = class extends Command {
   }
 
   /**
-   * Get the type string of the evaled result
-   * @param {Flags} flags The flags the command was called with
-   * @param {*} value The value to get the type string for
-   * @param {?Promise} [awaitedPromise] The promise that was already `await`ed earlier; this also acts
-   *  as a surrogate, so that if the original promise was wrapped in a timeout promise, the original
-   *  promise can be examined, while the already-awaited surrogate is awaited
-   * @param {number} [i=0] Just an iteration count to prevent infinite loops
-   * @returns {string}
-   */
-  async getTypeStr (flags, value, awaitedPromise = null, i = 0) {
-    if (value instanceof util.TimeoutError) return '?'
-
-    const { basicType, type } = util.getComplexType(value)
-    if (basicType === 'object') {
-      if (util.isThenable(value)) {
-        return i <= this.typeDepth && !flags.noAwait
-          // But we're gonna await the already-awaited promise, for efficiency
-          ? `${type}<${await this.getTypeStr(flags, await awaitedPromise, null, i + 1)}>`
-          : `${type}<?>`
-      }
-      if (Array.isArray(value)) return `${type}${util.getArrayType(value, this.typeDepth)}`
-      if (value instanceof Map) return `${type}${util.getMapType(value, this.typeDepth)}`
-      if (value instanceof Set) return `${type}${util.getSetType(value, this.typeDepth)}`
-      return `${type}${util.getObjectType(value, this.typeDepth)}`
-    }
-    if (basicType === 'function') return `${type}${util.getFunctionType(value, this.typeDepth)}`
-    return type
-  }
-
-  /**
    * Ask the user what to do, when the output is too long to send to a Discord channel
-   * @param {DiscordMessage} cmdMsg The command message
+   * @param {Message} cmdMsg The command message
    * @param {string} evaled The evaled value (as a string)
    * @param {string} topLine The line with the type and time
    * @param {string} question The question to ask the user
    * @param {{yes: string}} options Options for the query
-   * @returns {?Promise<DiscordMessage>}
+   * @returns {?Promise<Message>}
    */
   async sendTooLongQuery (cmdMsg, evaled, topLine, question, options) {
     const queryMsg = await cmdMsg.channel.send(`${question} (10s til auto-cancel)`)

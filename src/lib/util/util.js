@@ -263,60 +263,102 @@ class SelfbotUtil {
     if (basicType === 'object' && !valuelessObjects.some(klass => value instanceof klass)) {
       if (SelfbotUtil.isThenable(value) || Array.isArray(value) || value instanceof Set) {
         // Objects whose values should be displayed
-
-        deepType.has = 'values'
-
-        if (options.depth < 1) {
-          deepType.values = { has: 'unknown-depths' }
-        } else if (SelfbotUtil.isThenable(value)) {
-          const awaitedValue = await (options.surrogatePromise || SelfbotUtil.timeoutPromise(value, options.wait))
-          deepType.values = awaitedValue instanceof SelfbotUtil.TimeoutError
-            ? { has: 'unknown-value' }
-            : await recur(awaitedValue)
-        } else if (Array.isArray(value)) {
-          deepType.values = value.length === 0
-            ? { has: 'emptiness' }
-            : SelfbotUtil.mergeDeepTypeArray(await Promise.all(value.map(recur)))
-        } else if (value instanceof Set) {
-          deepType.values = value.size === 0
-            ? { has: 'emptiness' }
-            : SelfbotUtil.mergeDeepTypeArray(await Promise.all(Array.from(value.values()).map(recur)))
-        }
+        await SelfbotUtil._getDeepTypeValuedObj(recur, deepType, value, options)
       } else {
         // Objects whose keys and values should be displayed
-
-        deepType.has = 'keys&values'
-
-        if (options.depth < 1) {
-          deepType.keys = { has: 'unknown-depths' }
-          deepType.values = { has: 'unknown-depths' }
-        } else if (value instanceof Map) {
-          if (value.size === 0) {
-            deepType.keys = { has: 'emptiness' }
-            deepType.values = { has: 'emptiness' }
-          } else {
-            deepType.keys = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Array.from(value.keys()).map(recur)))
-            deepType.values = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Array.from(value.values()).map(recur)))
-          }
-        // Plain objects and others
-        } else if (Object.keys(value).length === 0) {
-          deepType.keys = { has: 'emptiness' }
-          deepType.values = { has: 'emptiness' }
-        } else {
-          deepType.keys = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Object.keys(value).map(recur)))
-          deepType.values = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Object.values(value).map(recur)))
-        }
+        await SelfbotUtil._getDeepTypeKeyedObject(recur, deepType, value, options)
       }
     } else if (basicType === 'function') {
       // Callable objects will just have their arity displayed
-      deepType.has = 'arity'
-      if (options.depth < 1) deepType.arity = null
-      else deepType.arity = value.length
+      await SelfbotUtil._getDeepTypeFn(recur, deepType, value, options)
     }
 
     SelfbotUtil.assertDeepType(deepType)
 
     return deepType
+  }
+
+  /**
+   * @since 0.2.0
+   * @private
+   * @param {Function} recur The function to call to continue recursion
+   * @param {deepType} deepType The deep type to mutate
+   * @param {Promise|Array|Set} value The value to get the deep type of
+   * @param {deepTypeOptions} options Options
+   * @returns {Promise<void>}
+   */
+  static async _getDeepTypeValuedObj (recur, deepType, value, options) {
+    // Objects whose values should be displayed
+
+    deepType.has = 'values'
+
+    if (options.depth < 1) {
+      deepType.values = { has: 'unknown-depths' }
+    } else if (SelfbotUtil.isThenable(value)) {
+      const awaitedValue = await (options.surrogatePromise || SelfbotUtil.timeoutPromise(value, options.wait))
+      deepType.values = awaitedValue instanceof SelfbotUtil.TimeoutError
+        ? { has: 'unknown-value' }
+        : await recur(awaitedValue)
+    } else if (Array.isArray(value)) {
+      deepType.values = value.length === 0
+        ? { has: 'emptiness' }
+        : SelfbotUtil.mergeDeepTypeArray(await Promise.all(value.map(recur)))
+    } else if (value instanceof Set) {
+      deepType.values = value.size === 0
+        ? { has: 'emptiness' }
+        : SelfbotUtil.mergeDeepTypeArray(await Promise.all(Array.from(value.values()).map(recur)))
+    }
+  }
+
+  /**
+   * @since 0.2.0
+   * @private
+   * @param {Function} recur The function to call to continue recursion
+   * @param {deepType} deepType The deep type to mutate
+   * @param {Map|Object} value The value to get the deep type of
+   * @param {deepTypeOptions} options Options
+   * @returns {Promise<void>}
+   */
+  static async _getDeepTypeKeyedObject (recur, deepType, value, options) {
+    // Objects whose keys and values should be displayed
+
+    deepType.has = 'keys&values'
+
+    if (options.depth < 1) {
+      deepType.keys = { has: 'unknown-depths' }
+      deepType.values = { has: 'unknown-depths' }
+    } else if (value instanceof Map) {
+      if (value.size === 0) {
+        deepType.keys = { has: 'emptiness' }
+        deepType.values = { has: 'emptiness' }
+      } else {
+        deepType.keys = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Array.from(value.keys()).map(recur)))
+        deepType.values = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Array.from(value.values()).map(recur)))
+      }
+    // Plain objects and others
+    } else if (Object.keys(value).length === 0) {
+      deepType.keys = { has: 'emptiness' }
+      deepType.values = { has: 'emptiness' }
+    } else {
+      deepType.keys = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Object.keys(value).map(recur)))
+      deepType.values = SelfbotUtil.mergeDeepTypeArray(await Promise.all(Object.values(value).map(recur)))
+    }
+  }
+
+  /**
+   * @since 0.2.0
+   * @private
+   * @param {Function} recur The function to call to continue recursion
+   * @param {deepType} deepType The deep type to mutate
+   * @param {Function} value The value to get the deep type of
+   * @param {deepTypeOptions} options Options
+   * @returns {Promise<void>}
+   */
+  static async _getDeepTypeFn (recur, deepType, value, options) {
+    // Callable objects will just have their arity displayed
+    deepType.has = 'arity'
+    if (options.depth < 1) deepType.arity = null
+    else deepType.arity = value.length
   }
 
   /**

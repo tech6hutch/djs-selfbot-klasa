@@ -99,14 +99,14 @@ module.exports = class Tag extends SelfbotCommand {
     console.log({action, tagname, contents})
     if (!action) {
       if (tagname) {
-        if (contents) action = 'edit'
-        else action = 'get'
-      } else {
+        action = contents ? 'edit' : 'get'
+      } else if (contents) {
         // If the first word is over 100 chars, then Klasa will parse it as `contents`.
         // Hence, having neither `action` nor `tagname`, but having `contents`.
         // "nani the fuck deska" - Evie, 2017
-        if (contents) return msg.channel.send('nani the fuck deska', {code: true})
-        else action = 'list'
+        return msg.channel.send('nani the fuck deska', {code: true})
+      } else {
+        action = 'list'
       }
     }
     return msg.channel.send(await this[`${action}Run`](msg.language,
@@ -147,13 +147,15 @@ module.exports = class Tag extends SelfbotCommand {
    * @param {Language} lang The language object
    * @param {string} tagname The tag name
    * @param {string} contents The contents of the new tag
+   * @param {Guild} guild The guild the message was sent in, if any
    * @returns {Promise<string>}
    */
-  async addRun (lang, tagname, contents) {
+  async addRun (lang, tagname, contents, guild) {
     if (this.exists(tagname)) return lang.get('COMMAND_TAG_ALREADY_EXISTS', tagname)
     if (!contents) return lang.get('COMMAND_TAG_CONTENT_REQUIRED')
 
-    await this.db.createEntry(tagname, { contents })
+    await this.db.createEntry(tagname)
+    await this.db.updateOne(tagname, 'contents', contents, guild)
     return lang.get('COMMAND_TAG_ADDED', tagname)
   }
 
